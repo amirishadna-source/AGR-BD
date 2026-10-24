@@ -1,0 +1,10 @@
+Supreme Seed Android APK - Phone Build
+
+1. Android Chrome থেকে github.com এ লগইন করুন।
+2. New repository (Private), নাম supreme-seed-android, Create repository।
+3. এই ZIP extract করুন। রিপোজিটরির root-এ সব ফাইল/ফোল্ডার আপলোড করুন (app, .github, settings.gradle, build.gradle, gradle.properties)।
+4. GitHub Actions tab > Build Supreme Seed APK > Run workflow। main branch নির্বাচন করুন।
+5. Build success হলে workflow run-এর Artifacts থেকে SupremeSeed-debug-APK ডাউনলোড করুন।
+6. artifact ZIP extract করে app-debug.apk ইনস্টল করুন।
+
+NOTE: GitHub mobile browser may hide .github folder or multi-file upload. If so use Desktop site or GitHub mobile upload workflow, or upload from a PC. This is a debug APK. The project has not been compiled/tested in this environment.
