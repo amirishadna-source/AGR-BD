@@ -71,7 +71,33 @@ function makePaper(type){
 }
 function previewReport(type){if(type!=='stock'&&!rows[type].length)return alert('আগে অন্তত একটি পণ্য যোগ করুন');$('reportOutput').innerHTML=makePaper(type);$('reportOutput').classList.remove('hidden');$('reportOutput').scrollIntoView({behavior:'smooth',block:'start'})}
 function printReport(type){if(type!=='stock'&&!rows[type].length)return alert('আগে এন্ট্রি যোগ করুন');$('reportOutput').innerHTML=makePaper(type);$('reportOutput').classList.remove('hidden');window.print()}
-async function downloadJpg(type){if(type!=='stock'&&!rows[type].length)return alert('আগে এন্ট্রি যোগ করুন');$('reportOutput').innerHTML=makePaper(type);$('reportOutput').classList.remove('hidden');const paper=$('paper');try{const mod=await import('https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/+esm');let url=await mod.toJpeg(paper,{quality:.96,backgroundColor:'#fff',pixelRatio:2});let a=document.createElement('a');a.href=url;a.download='SupremeSeed_'+region+'_'+type+'.jpg';a.click()}catch(e){alert('JPG Export-এর জন্য ইন্টারনেট সংযোগ প্রয়োজন। বিকল্প হিসেবে Print/PDF ব্যবহার করুন।')} }
+async function downloadJpg(type){
+ if(type!=='stock'&&!rows[type].length)return alert('আগে এন্ট্রি যোগ করুন');
+ const output=$('reportOutput');output.innerHTML=makePaper(type);output.classList.remove('hidden');
+ const paper=$('paper');
+ try{
+  await document.fonts.ready;
+  await Promise.all(Array.from(paper.querySelectorAll('img')).map(im=>im.complete?Promise.resolve():new Promise(resolve=>{im.onload=resolve;im.onerror=resolve;setTimeout(resolve,4000)})));
+  // Offline renderer: no CDN, network, or third-party JavaScript needed.
+  const clone=paper.cloneNode(true);
+  clone.style.cssText+=';width:760px;max-width:none;box-sizing:border-box;background:white;margin:0;overflow:visible;';
+  const stage=document.createElement('div');stage.style.cssText='position:fixed;left:-10000px;top:0;width:760px;background:#fff;z-index:-1;';stage.appendChild(clone);document.body.appendChild(stage);
+  const width=760,height=Math.ceil(clone.scrollHeight+8);
+  if(height>14000){stage.remove();throw Error('Report too tall for one image; use Print/PDF');}
+  const css=Array.from(document.querySelectorAll('style')).map(x=>x.textContent).join('\n').replace(/@media\s+print\s*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g,'');
+  const serialized=new XMLSerializer().serializeToString(clone);
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+width+'" height="'+height+'"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml"><style>'+css.replace(/<\/style/gi,'<\\/style')+'</style>'+serialized+'</div></foreignObject></svg>';
+  stage.remove();
+  const img=new Image();const blob=new Blob([svg],{type:'image/svg+xml;charset=utf-8'});const obj=URL.createObjectURL(blob);
+  try{
+   await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(Error('WebView cannot render offline SVG'));img.src=obj});
+   const canvas=document.createElement('canvas');canvas.width=width*2;canvas.height=height*2;
+   const ctx=canvas.getContext('2d');if(!ctx)throw Error('Canvas unavailable');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.scale(2,2);ctx.drawImage(img,0,0,width,height);
+   const url=canvas.toDataURL('image/jpeg',.94);
+   const a=document.createElement('a');a.href=url;a.download='SupremeSeed_'+region+'_'+type+'.jpg';document.body.appendChild(a);a.click();a.remove();
+  }finally{URL.revokeObjectURL(obj)}
+ }catch(e){console.error('Offline JPG export:',e);alert('এই Android WebView-তে সরাসরি JPG তৈরি বা সেভ করা যাচ্ছে না। Print/PDF ব্যবহার করুন। বিস্তারিত: '+e.message)}
+}
 function backup(){let obj={};for(let i=0;i<localStorage.length;i++){let k=localStorage.key(i);if(k.startsWith('ss2026_')||k==='ss_region')obj[k]=localStorage.getItem(k)}let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(obj,null,2)],{type:'application/json'}));a.download='SupremeSeed_Backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function restore(e){let f=e.target.files[0];if(!f)return;let reader=new FileReader();reader.onload=()=>{try{let x=JSON.parse(reader.result);for(let [k,v] of Object.entries(x))if(k.startsWith('ss2026_')||k==='ss_region')localStorage.setItem(k,v);alert('Backup restored');renderAll()}catch(e){alert('ভুল JSON ফাইল')}};reader.readAsText(f)}
 for(let id of ['portfolio','depotPortfolio','stockPortfolio'])$(id).innerHTML=Object.entries(PRODUCTS).map(([k,v])=>'<option value="'+k+'">'+esc(v.name)+'</option>').join('');fillVarieties();fillVarieties('depot');stockOptions();$('dDate').value=today();$('depotDate').value=today();renderAll();go('home');
